@@ -1,0 +1,7 @@
+.cloud::before,
+  .cloud::after {
+      content: '';
+      position: absolute;
+      background: #B0E0E6;
+      border-radius: 50%;
+  }
