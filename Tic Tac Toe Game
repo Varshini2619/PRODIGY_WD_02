@@ -1,0 +1,368 @@
+index.html
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic Tac Toe</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(90deg, #DFF2EB, #B9E5E8, #7AB2D3, #4A628A);
+        }
+
+
+        @keyframes bounce {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-10px); }
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            gap: 5px;
+            margin-top: 20px;
+        }
+
+        .cell {
+            width: 100px;
+            height: 100px;
+            border: 1px solid #333;
+            font-size: 2em;
+            text-align: center;
+            line-height: 100px;
+            cursor: pointer;
+        }
+
+        .cell.highlight {
+            animation: flowerBlast 1s ease-in-out;
+            background: #ffddc1;
+        }
+
+        @keyframes flowerBlast {
+            0% { transform: scale(1); background: #f7b4aa; }
+            50% { transform: scale(1.5); background: #FFD700; }
+            100% { transform: scale(1); background: #ffddc1; }
+        }
+
+        #sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 100%;
+            background-color: transparent;
+            overflow-x: hidden;
+            transition: 0.5s;
+            padding-top: 60px;
+            color: white;
+        }
+
+        #sidebar a {
+            padding: 8px 8px 8px 32px;
+            text-decoration: none;
+            font-size: 20px;
+            color: black;
+            display: block;
+            transition: 0.3s;
+        }
+
+        #sidebar a:hover {
+            color: #f1f1f1;
+        }
+
+        #openSidebar {
+            font-size: 30px;
+            cursor: pointer;
+            color: #333;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: transparent;
+        }
+
+        #scoreboard-container {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 1.2em;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div id="openSidebar">&#9776; Settings</div>
+    <div id="sidebar">
+        <a href="javascript:void(0)" onclick="closeSidebar()">Close &times;</a>
+        <a href="#" id="resetButton">Reset Game</a>
+        <a href="#" id="swapButton">Switch Player</a>
+        <a href="#">
+            <label for="themeSelector" style="color: black; font-size: 20px;">Choose Symbol Theme</label>
+            <select id="themeSelector">
+                <option value="classic">Classic</option>
+                <option value="emoji">Emoji</option>
+                <option value="space">Space</option>
+                <option value="fantasy">Fantasy</option>
+            </select>
+        </a>
+        <a href="#">
+            <label for="boardThemeSelector" style="color: black; font-size: 20px;">Choose Board Theme</label>
+            <select id="boardThemeSelector">
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="neon">Neon</option>
+            </select>
+        </a>
+    </div>
+
+    <div class="container">
+        <div id="scoreboard-container">
+            <div id="scoreboard">Player X: 0 | Player O: 0</div>
+        </div>
+        <div class="board">
+            <div class="cell" data-index="0"></div>
+            <div class="cell" data-index="1"></div>
+            <div class="cell" data-index="2"></div>
+            <div class="cell" data-index="3"></div>
+            <div class="cell" data-index="4"></div>
+            <div class="cell" data-index="5"></div>
+            <div class="cell" data-index="6"></div>
+            <div class="cell" data-index="7"></div>
+            <div class="cell" data-index="8"></div>
+        </div>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        
+        function openSidebar() {
+            document.getElementById("sidebar").style.width = "250px";
+        }
+
+        function closeSidebar() {
+            document.getElementById("sidebar").style.width = "0";
+        }
+
+        document.getElementById("openSidebar").addEventListener("click", openSidebar);
+
+        const themes = {
+            classic: { X: 'X', O: 'O' },
+            emoji: { X: '🐱', O: '🐶' },
+            space: { X: '🚀', O: '👾' },
+            fantasy: { X: '🧙', O: '🐉' }
+        };
+
+        const boardThemes = {
+            light: ['#f7b4aa', '#FCEDDA'],
+            dark: ['#333', '#666'],
+            neon: ['#39FF14', '#FF1493']
+        };
+
+        let currentTheme = themes.classic;
+        let currentBoardTheme = boardThemes.light;
+        let gameState = ["", "", "", "", "", "", "", "", ""];
+        let gameActive = true;
+        let currentPlayer = 'X';
+        let playerXScore = 0;
+        let playerOScore = 0;
+
+        const themeSelector = document.getElementById('themeSelector');
+        const boardThemeSelector = document.getElementById('boardThemeSelector');
+        const cells = document.querySelectorAll('.cell');
+        const statusText = document.getElementById('status');
+        const resetButton = document.getElementById('resetButton');
+        const swapButton = document.getElementById('swapButton');
+        const scoreboard = document.getElementById('scoreboard');
+
+        themeSelector.addEventListener('change', (event) => {
+            currentTheme = themes[event.target.value];
+            resetGame();
+        });
+
+        boardThemeSelector.addEventListener('change', (event) => {
+            currentBoardTheme = boardThemes[event.target.value];
+            applyBoardTheme();
+        });
+
+        cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+        resetButton.addEventListener('click', resetGame);
+        swapButton.addEventListener('click', swapPlayer);
+
+        function handleCellClick(event) {
+            const cell = event.target;
+            const cellIndex = cell.getAttribute('data-index');
+            if (gameState[cellIndex] !== "" || !gameActive || currentPlayer !== 'X') return;
+
+            gameState[cellIndex] = currentPlayer;
+            cell.textContent = currentTheme[currentPlayer];
+            checkOutcome();
+            currentPlayer = 'O';
+            setTimeout(computerMove, 500);
+        }
+
+        function computerMove() {
+            if (!gameActive) return;
+            const availableCells = gameState.map((_, i) => i).filter(i => !gameState[i]);
+            if (availableCells.length === 0) return;
+
+            const randomIndex = availableCells[Math.floor(Math.random() * availableCells.length)];
+            gameState[randomIndex] = currentPlayer;
+            cells[randomIndex].textContent = currentTheme[currentPlayer];
+            checkOutcome();
+            currentPlayer = 'X';
+        }
+
+        function checkOutcome() {
+            const winningConditions = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8],
+                [0, 3, 6], [1, 4, 7], [2, 5, 8],
+                [0, 4, 8], [2, 4, 6]
+            ];
+            for (const [a, b, c] of winningConditions) {
+                if (gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
+                    statusText.textContent = `${currentTheme[currentPlayer]} wins!`;
+                    gameActive = false;
+                    highlightWinningCells(a, b, c);
+                    currentPlayer === 'X' ? playerXScore++ : playerOScore++;
+                    updateScore();
+                    return;
+                }
+            }
+            if (!gameState.includes("")) {
+                statusText.textContent = "It's a draw!";
+                gameActive = false;
+            }
+        }
+
+        function highlightWinningCells(a, b, c) {
+            [a, b, c].forEach(index => cells[index].classList.add('highlight'));
+        }
+
+        function updateScore() {
+            scoreboard.textContent = `Player X: ${playerXScore} | Player O: ${playerOScore}`;
+        }
+
+        function resetGame() {
+            gameState = ["", "", "", "", "", "", "", "", ""];
+            gameActive = true;
+            currentPlayer = 'X';
+            statusText.textContent = `It's ${currentPlayer}'s turn`;
+            cells.forEach(cell => {
+                cell.textContent = "";
+                cell.classList.remove('highlight');
+            });
+        }
+
+        function swapPlayer() {
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            statusText.textContent = `Switched! It's ${currentPlayer}'s turn`;
+        }
+
+        function applyBoardTheme() {
+            cells.forEach((cell, index) => {
+                cell.style.background = index % 2 === 0 ? currentBoardTheme[0] : currentBoardTheme[1];
+            });
+        }
+
+        applyBoardTheme();
+    </script>
+</body>
+</html>
+
+tic.html
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIC TAC TOE</title>
+    <style>
+        
+        body {
+            background-color: #0E343E;
+            font-family: Arial, sans-serif;
+            font-style: normal;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        
+        h1, .clickable-heading {
+            color: #FFB38E;
+            font-size: 2.5rem;
+            font-weight: bold;
+            text-align: center;
+            z-index: 2;
+        }
+
+        
+        .clickable-heading a {
+            font-size: 2em;
+            font-weight: bold;
+            background: #FFE18F;
+            background-size: 200% 200%;
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            animation: glitter 2s linear infinite;
+        }
+
+        @keyframes glitter {
+            0% {
+                background-position: 0% 50%;
+            }
+            100% {
+                background-position: 100% 50%;
+            }
+        }
+
+        .clickable-heading a:hover {
+            color: #F49F1C; 
+        }
+
+        p {
+            font-size: 1.2rem;
+            color: #F9BE4A;
+            text-align: center;
+        }
+
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1 class="clickable-heading">
+            <a href="index.html">TIC TAC TOE</a>
+        </h1>
+        <p>Play a game!</p>
+    </div>
+</body>
+</html>
